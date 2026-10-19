@@ -8,8 +8,19 @@ vendor
 .grok
 .zed
 .ouroboros
+*.log
 storage/logs/*.log
 storage/framework/cache/*
 storage/framework/sessions/*
 storage/framework/views/*
 .phpunit.result.cache
+database/database.sqlite
+database/database.sqlite-journal
+
+# Local docs that are not needed in any image build
+AGENTS.md
+CLAUDE.md
+ACCEPTANCE_CRITERIA.md
+ANALYTICS_SYSTEM.md
+tasks.xoon.html
+verification_plan.md

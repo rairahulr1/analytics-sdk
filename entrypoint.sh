@@ -16,10 +16,11 @@ done
 echo "Running migrations..."
 php artisan migrate --force
 
-# Run seeders if SEED_DATABASE is true or 1
-if [ "$SEED_DATABASE" = "true" ] || [ "$SEED_DATABASE" = "1" ] || [ -n "$SEED_DATABASE" -a "$SEED_DATABASE" != "0" -a "$SEED_DATABASE" != "false" ]; then
-    echo "Running database seeders..."
+# Run seeders on first startup only, if SEED_DATABASE is truthy or 1
+if [ -n "$SEED_DATABASE" ] && [ "$SEED_DATABASE" != "0" ] && [ "$SEED_DATABASE" != "false" ] && [ ! -f /tmp/.app_initialized ]; then
+    echo "Running database seeders (first startup)..."
     php artisan db:seed --force
+    touch /tmp/.app_initialized
 fi
 
 # Start PHP-FPM
