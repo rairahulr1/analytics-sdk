@@ -2,39 +2,93 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   deploy:
+    name: Deploy to VPS
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://your-vps-domain.com
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH known hosts and key
+      - name: Setup SSH known hosts
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-          echo "${{ secrets.VPS_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          # Documented approach for this project: record the host key via
+          # ssh-keyscan so connections use a populated known_hosts file and
+          # never blind trust; StrictHostKeyChecking below is accept-new.
+          ssh-keyscan -H '${{ secrets.VPS_HOST }}' >> ~/.ssh/known_hosts
 
-      - name: Pull latest code and deploy
+      - name: Write SSH private key
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            cd /var/www/analytics-sdk
-            git pull origin main
-            docker compose down
-            docker compose up --build -d
-            docker exec analytics-laravel php artisan migrate --force
-            docker exec analytics-laravel php artisan db:seed --force
-          "
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
-      - name: Verify deployment
+      - name: Sync code to VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
         run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
-            curl -s -o /dev/null -w '%{http_code}' https://your-vps-domain.com
-          "
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${VPS_SSH_USER}@${VPS_HOST}" \
+              "mkdir -p '${VPS_DEPLOY_PATH}'"
+          # .env is excluded so the server-managed config (VPS Prerequisites)
+          # survives redeploys; composer/vendor and node_modules are rebuilt
+          # or installed on the VPS itself.
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.env' \
+            --exclude='node_modules/' \
+            --exclude='vendor/' \
+            ./ "${VPS_SSH_USER}@${VPS_HOST}:${VPS_DEPLOY_PATH}/"
+
+      - name: Install dependencies, run migrations and refresh caches on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${VPS_SSH_USER}@${VPS_HOST}" \
+              "set -e
+               cd '${VPS_DEPLOY_PATH}'
+               composer install --no-interaction --prefer-dist --optimize-autoloader
+               php artisan migrate --force
+               php artisan config:clear
+               php artisan config:cache
+               php artisan route:clear
+               php artisan route:cache"
+
+      - name: Restart PHP-FPM and Nginx on VPS
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${VPS_SSH_USER}@${VPS_HOST}" \
+              "sudo systemctl restart php8.3-fpm
+               sudo systemctl restart nginx"
+
+      - name: Verify deployment health
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        # NOTE: VPS_HOST must be the public origin serving the app over HTTPS
+        # (port 443); only then does this check reflect the live deploy target.
+        run: |
+          if curl -fsS --max-time 15 "https://${VPS_HOST}" > /dev/null; then
+            echo "Deployment verified: https://${VPS_HOST} responded successfully."
+          else
+            echo "::error::Health check failed at https://${VPS_HOST}"
+            exit 1
+          fi

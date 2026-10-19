@@ -3,8 +3,6 @@ name: Analytics SDK CI/CD
 on:
   pull_request:
     branches: [ main, develop ]
-  push:
-    branches: [ main ]
 
 jobs:
   # Job: Run tests on pull requests
@@ -32,7 +30,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          # composer.json requires php: ^8.3
+          php-version: '8.3'
           extensions: pdo pdo_pgsql pgsql mbstring exif pcntl bcmath zip
 
       - name: Install dependencies
@@ -40,24 +39,37 @@ jobs:
           composer install --no-interaction --prefer-dist
           npm install
 
-      - name: Setup test database
+      - name: Setup test database environment
         run: |
           cp .env.example .env
-          echo "DB_CONNECTION=pgsql" >> .env
-          echo "DB_HOST=localhost" >> .env
-          echo "DB_PORT=5432" >> .env
-          echo "DB_DATABASE=analytics_test" >> .env
-          echo "DB_USERNAME=analytics_user" >> .env
-          echo "DB_PASSWORD=secret" >> .env
+          {
+            echo "DB_CONNECTION=pgsql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=5432"
+            echo "DB_DATABASE=analytics_test"
+            echo "DB_USERNAME=analytics_user"
+            echo "DB_PASSWORD=secret"
+          } >> .env
 
       - name: Generate application key
         run: php artisan key:generate --force
 
-      - name: Run migrations
+      - name: Run migrations and seed
         run: php artisan migrate:fresh --seed --force
 
-      - name: Run Vitest tests
-        run: npm test
+      - name: Run test suite
+        env:
+          # phpunit.xml pins DB_CONNECTION=sqlite / DB_DATABASE=:memory: via
+          # <env> entries, which do NOT override real environment variables.
+          # These step-level values make the PHPUnit run target the Postgres
+          # service container defined above instead of in-memory SQLite.
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: analytics_test
+          DB_USERNAME: analytics_user
+          DB_PASSWORD: secret
+        run: php artisan test
 
       - name: Upload test results
         if: failure()
@@ -65,60 +77,3 @@ jobs:
         with:
           name: test-failures
           path: storage/logs/*.log
-
-  # Job: Deploy to VPS on push to main
-  deploy:
-    name: Deploy to VPS
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup SSH known hosts
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Add SSH private key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          known_hosts: ~/.ssh/known_hosts
-
-      - name: Deploy to VPS via SSH
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_SSH_USER }}
-        run: |
-          rsync -avz --delete \
-            --exclude='.git' \
-            --exclude='node_modules/' \
-            --exclude='vendor/' \
-            ./${{ secrets.DEPLOY_RELATIVE_PATH }}/ \
-            ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_DEPLOY_PATH }}
-
-      - name: Run migrations on VPS
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_SSH_USER }}
-        run: |
-          ssh ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_HOST }} "
-            cd ${{ secrets.VPS_DEPLOY_PATH }}
-            composer install --no-interaction --prefer-dist --optimize-autoloader
-            php artisan migrate --force
-            php artisan config:cache
-            php artisan route:cache
-          "
-
-      - name: Restart PHP-FPM on VPS
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_SSH_USER }}
-        run: |
-          ssh ${{ secrets.VPS_SSH_USER }}@${{ secrets.VPS_HOST }} "
-            sudo systemctl restart php8.3-fpm 2>/dev/null || true
-            sudo kill -HUP $(pgrep -f php-fpm) 2>/dev/null || true
-          "

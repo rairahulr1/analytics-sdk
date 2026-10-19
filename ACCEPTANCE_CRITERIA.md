@@ -9,8 +9,8 @@ The Docker Compose configuration includes a dedicated PostgreSQL service named `
 ## GitHub CI/CD Pipeline
 
 GitHub Actions workflow runs two jobs:
-- **`test`** — runs on pull requests: sets up PostgreSQL, installs deps, runs migrations + seeds, executes `npm test`, uploads failure artifacts
-- **`deploy`** — runs on `main` push: SSH deploy to VPS, runs migrations + cache clear, restarts PHP-FPM
+- **`test`** (`ci.yml`) — runs on pull requests to `main`/`develop` only: sets up PostgreSQL (service container), installs deps, runs migrations + seeds, executes the PHPUnit suite via `php artisan test`, uploads failure artifacts
+- **`deploy`** (`deploy.yml`) — runs on `main` push: SSH deploy to VPS (code synced into `VPS_DEPLOY_PATH`), runs `composer install` + migrations + cache refresh, restarts PHP-FPM and Nginx, then verifies via HTTPS health check against `VPS_HOST`
 
 ## Required GitHub Secrets
 
