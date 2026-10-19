@@ -1,58 +1,64 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Analytics SDK — Restaurant Demo
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+End-to-end event analytics for a Laravel 13 + React (Vite) restaurant demo app:
 
-## About Laravel
+- **Browser SDK** (`public/js/analytics.js`) — auto-generated session ID, sends events with CSRF (`X-XSRF-TOKEN` from the `csrf-token` meta tag).
+- **Server tracker** (`app/Helpers/EventTracker.php` + `App\Facades\EventTracker`) — records server-side events (e.g. order created).
+- **Ingestion + API** — `POST /api/events`, `GET /api/events` (filters by source/type/date, paginate 50).
+- **Dashboard** — React + Tailwind mounted at `/analytics` (Blade view, date filtering, pure React — no component-library deps).
+- **Demo flow** — `/restaurant` menu → order → events recorded from both browser and server.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Details of the system, data model and assumptions/limitations: see **ANALYTICS_SYSTEM.md**; acceptance contract: **ACCEPTANCE_CRITERIA.md**.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quick start (one command)
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+docker compose up --build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Brings up the full stack on first run (app: <http://localhost>):
 
-## Contributing
+- `db` — PostgreSQL 15 (health-checked)
+- `laravel` — PHP-FPM app; runs `php artisan migrate --force` on every boot, seeds sample data **only on first startup** (`/tmp/.app_initialized` marker in the container)
+- `front` — nginx serving the app + built assets (FastCGI → laravel:9000)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Database/seed override via `.env` (`DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SEED_DATABASE`).
 
-## Code of Conduct
+## Local development (without Docker)
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer install && npm install
+php artisan serve --port=8000    &
+npm run build                    # or: npx vite --port=3003 (dev proxy /api + /restaurant → :8000)
+```
 
-## Security Vulnerabilities
+Local dev DB is SQLite at `database/database.sqlite`.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Tests
 
-## License
+```bash
+php artisan test        # 11 tests: event ingest, list+filter, filter by source, order flow
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## CI/CD (GitHub Actions)
+
+- `.github/workflows/ci.yml` — on **pull requests** to `main`/`develop`: Postgres service container, `php artisan migrate:fresh --seed`, full PHPUnit suite.
+- `.github/workflows/deploy.yml` — on **push to `main`**: rsync to the VPS (`.env` on the server is preserved across deploys), `composer install`, `php artisan migrate --force`, config/route cache refresh, php-fpm + nginx restart, HTTPS health check.
+
+.Required repository secrets:
+
+| Secret | Purpose |
+|---|---|
+| `VPS_HOST` | Public hostname (SSH target and HTTPS health-check origin) |
+| `VPS_SSH_PRIVATE_KEY` | Deploy key registered in the VPS user's `authorized_keys` |
+| `VPS_SSH_USER` | SSH user on the VPS |
+| `VPS_DEPLOY_PATH` | Absolute path to the app on the VPS |
+
+VPS prerequisites: PHP 8.3 + required extensions (pdo_pgsql…), nginx + php-fpm, composer, rsync on the runner, deploy user's `authorized_keys` configured, `.env` present at `VPS_DEPLOY_PATH`, sudo rights for `systemctl restart php8.3-fpm nginx`.
+
+## Known limitations / assumptions
+
+- Nginx front container mounts `./` read-only; a bare `docker run` of either image (without the compose mounts) serves different content — use `docker compose up`.
+- `APP_KEY` currently comes from the repo `.env` baked into the image; fine for local dev — keep the repo private or move the key into the VPS `.env` / CI secrets before pushing the image anywhere.
+- Seeders re-run whenever the app container is recreated (new `/tmp`), so the demo DB may gain duplicate sample rows on repeat `up --build`; wipe with `docker compose down -v` for a clean slate.
+- Artisan dev tooling (`artisan serve` in local non-Docker mode) is single-threaded — demo only.
