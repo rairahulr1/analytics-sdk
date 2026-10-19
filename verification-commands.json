@@ -1,0 +1,5 @@
+{
+    "lint": "vendor/bin/pint",
+    "build": "vite build",
+    "test": "php artisan test"
+}

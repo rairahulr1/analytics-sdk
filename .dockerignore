@@ -1,0 +1,15 @@
+node_modules
+vendor
+.git
+.agents
+.claude
+.amp
+.factory
+.grok
+.zed
+.ouroboros
+storage/logs/*.log
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+.phpunit.result.cache

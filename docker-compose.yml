@@ -1,0 +1,82 @@
+services:
+  # PostgreSQL database service
+  db:
+    image: postgres:15-alpine
+    container_name: analytics-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-analytics}
+      POSTGRES_USER: ${DB_USERNAME:-analytics_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-analytics_user} -d ${DB_DATABASE:-analytics}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Laravel application service
+  laravel:
+    build:
+      context: .
+      dockerfile: Dockerfile.laravel
+    container_name: analytics-laravel
+    restart: unless-stopped
+    working_dir: /var/www
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-analytics}
+      DB_USERNAME: ${DB_USERNAME:-analytics_user}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+      APP_ENV: local
+      APP_DEBUG: "true"
+      # Environment detection
+      NODE_ENV: development
+      # Seed control
+      SEED_DATABASE: ${SEED_DATABASE:-true}
+    ports:
+      - "9000:9000"
+    volumes:
+      - .:/var/www
+    entrypoint: ["entrypoint.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "php artisan db:status > /dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # React / Web frontend service (Nginx)
+  front:
+    build:
+      context: .
+      dockerfile: Dockerfile.front
+    container_name: analytics-front
+    restart: unless-stopped
+    depends_on:
+      laravel:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www:ro
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge

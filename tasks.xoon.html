@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" data-engine="xoon">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analytics SDK & Dashboard — Verification and Execution DAG</title>
+  <link rel="stylesheet" href="./style.css">
+  <script defer src="./xoon-renderer.js"></script>
+</head>
+<body>
+
+<article class="xoon-container">
+  <header class="document-header">
+    <h1>Analytics SDK & Dashboard — Audit, Plan & Verification</h1>
+    <metadata>
+      as_of: 2026-10-20
+      owner: Lead Architect
+      methodology: assist-ponytail-auto
+      status: InProgress
+      quality_bar: 0.98
+    </metadata>
+  </header>
+
+  <main id="app" aria-live="polite">
+    <!-- Hydrated at runtime by xoon-renderer.js -->
+  </main>
+
+  <dataset id="data" type="text/xoon">
+  tasks[8]{id,title,status,priority,owner}:
+    TSK-01,Flatten nested workspace and fix root Docker & CI configs,Completed,Critical,Subagent-1A
+    TSK-02,Fix PHP 8.4 deprecations & eliminate bootstrap/app dynamic property,Completed,Critical,Subagent-1B
+    TSK-03,Build zero-dependency Browser SDK with session management & sendBeacon,Completed,High,Subagent-2A
+    TSK-04,Refactor Server-side EventTracker Helper & Facade with PHP 8.4 type safety,Completed,High,Subagent-2B
+    TSK-05,Upgrade Ingestion API & SQL aggregation endpoint for high-performance stats,Completed,High,Subagent-2C
+    TSK-06,Fix Restaurant Demo views & build React Analytics Dashboard without MUI bloat,Completed,High,Subagent-3A
+    TSK-07,Ensure idempotent database migrations & rich 7-day realistic seeders,Completed,Medium,Subagent-3B
+    TSK-08,Implement Vitest & PHPUnit test suites and verify all failure modes,Completed,Critical,Subagent-3C
+
+  guidelines[4]:
+    - Ponytail: Zero bloated dependencies (delete MUI, use native platform + clean Tailwind/React).
+    - Failure Modes: Verify all 6 failure modes from ACCEPTANCE_CRITERIA.md.
+    - Idempotency: Migrations and db:seed must be safely re-runnable without constraint violations.
+    - Verification: Verify end-to-end browser event tracking to server order creation in live dashboard.
+  </dataset>
+</article>
+
+</body>
+</html>

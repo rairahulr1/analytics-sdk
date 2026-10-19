@@ -1,0 +1,27 @@
+# Secrets — local envs stay out; .env.example files are committed
+.env
+.env.backup
+.env.production
+.env.save
+
+# Dependencies & build output
+node_modules/
+vendor/
+public/build/
+public/hot/
+public/storage/
+storage/*.key
+composer.phar
+
+# Local tool & pipeline state
+.ouroboros/
+.phpunit.result.cache
+.phpunit.cache
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Local Claude/Codex settings
+settings.local.json
