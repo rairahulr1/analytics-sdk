@@ -5,7 +5,7 @@ End-to-end event analytics for a Laravel 13 + React (Vite) restaurant demo app:
 - **Browser SDK** (`public/js/analytics.js`) — auto-generated session ID, sends events with CSRF (`X-XSRF-TOKEN` from the `csrf-token` meta tag).
 - **Server tracker** (`app/Helpers/EventTracker.php` + `App\Facades\EventTracker`) — records server-side events (e.g. order created).
 - **Ingestion + API** — `POST /api/events`, `GET /api/events` (filters by source/type/date, paginate 50).
-- **Dashboard** — React + Tailwind mounted at `/analytics` (Blade view, date filtering, pure React — no component-library deps).
+- **Dashboard** — React + Tailwind mounted at `/dashboard` (Blade view, date filtering, pure React — no component-library deps).
 - **Demo flow** — `/restaurant` menu → order → events recorded from both browser and server.
 
 Details of the system, data model and assumptions/limitations: see **ANALYTICS_SYSTEM.md**; acceptance contract: **ACCEPTANCE_CRITERIA.md**.
@@ -16,7 +16,7 @@ Details of the system, data model and assumptions/limitations: see **ANALYTICS_S
 docker compose up --build
 ```
 
-Brings up the full stack on first run (app: <http://localhost>):
+Brings up the full stack on first run (app: <http://localhost:8088>, PostgreSQL published on host port 5433):
 
 - `db` — PostgreSQL 15 (health-checked)
 - `laravel` — PHP-FPM app; runs `php artisan migrate --force` on every boot, seeds sample data **only on first startup** (`/tmp/.app_initialized` marker in the container)
