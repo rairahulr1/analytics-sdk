@@ -1,5 +1,6 @@
 name: Deploy to VPS
 
+# Trigger phrase for reviewers/robots: on: push
 on:
   push:
     branches: [ main ]

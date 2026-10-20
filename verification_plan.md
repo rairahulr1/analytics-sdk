@@ -2,7 +2,7 @@
 
 ## Committed Decision — Consistent with Existing Implementation
 
-**Migrations**: `docker compose up --build` always runs `php artisan migrate --force`. Laravel's migration system is idempotent — if migrations already exist, the command completes instantly (exit 0) without re-executing. On a fresh database, all migrations run to completion. This behavior is guaranteed by the `entrypoint.sh` script and `Dockerfile.laravel`.
+**Migrations**: `docker compose up --build` always runs `php artisan migrate --force`. Laravel's migration system is idempotent — if migrations already exist, the command completes instantly (exit 0) without re-executing. On a fresh database, all migrations run to completion. This behavior is guaranteed by the `entrypoint.sh` script and `Dockerfile`.
 
 **Seed data**: Runs automatically on every `docker compose up --build`. The `SEED_DATABASE` env var defaults to `true` in `docker-compose.yml` (`SEED_DATABASE: ${SEED_DATABASE:-true}`), and the `entrypoint.sh` script checks `if [ -n "$SEED_DATABASE" ]` — since the variable is always set to a non-empty value, seeding runs unconditionally on every startup, whether fresh or re-deploy.
 

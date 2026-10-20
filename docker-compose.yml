@@ -26,7 +26,7 @@ services:
   laravel:
     build:
       context: .
-      dockerfile: Dockerfile.laravel
+      dockerfile: Dockerfile
     container_name: analytics-laravel
     restart: unless-stopped
     working_dir: /var/www

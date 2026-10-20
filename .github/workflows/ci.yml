@@ -1,8 +1,6 @@
 name: Analytics SDK CI/CD
 
-on:
-  pull_request:
-    branches: [ main, develop ]
+on: pull_request
 
 jobs:
   # Job: Run tests on pull requests
