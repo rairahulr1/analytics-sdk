@@ -101,7 +101,7 @@ export default function AnalyticsDashboard() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+                    <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1" data-tour="dashboard-date-filter">
                         {[
                             { id: 'today', label: 'Today' },
                             { id: '7d', label: '7 Days' },
@@ -155,6 +155,16 @@ export default function AnalyticsDashboard() {
                         />
                         Live auto-poll
                     </label>
+
+                    <button
+                        type="button"
+                        onClick={() => window.startWalkthrough && window.startWalkthrough()}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition shadow-2xs border border-indigo-200 ml-1"
+                        title="Start interactive product tour"
+                    >
+                        <span>🎓</span>
+                        <span>Guided Tour</span>
+                    </button>
                 </div>
             </div>
 
@@ -186,7 +196,7 @@ export default function AnalyticsDashboard() {
             </div>
 
             {/* Metric KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-tour="dashboard-summary-cards">
                 {[
                     {
                         title: 'Total Ingested Events',
@@ -226,7 +236,7 @@ export default function AnalyticsDashboard() {
             {/* Middle Grid: Popular Pages & Trends */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Popular Pages */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5" data-tour="dashboard-popular-pages">
                     <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center justify-between">
                         <span>Popular Pages</span>
                         <span className="text-xs font-normal text-slate-500">Top Paths</span>
@@ -255,7 +265,7 @@ export default function AnalyticsDashboard() {
                 </div>
 
                 {/* Event Type & Source Breakdown */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5" data-tour="dashboard-event-breakdown">
                     <h2 className="text-base font-bold text-slate-900 mb-3">Event Breakdown</h2>
                     <div className="space-y-3">
                         <div>
@@ -285,7 +295,7 @@ export default function AnalyticsDashboard() {
                 </div>
 
                 {/* Daily Activity Visualizer */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5" data-tour="dashboard-trends-chart">
                     <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center justify-between">
                         <span>Activity Trends</span>
                         <span className="text-xs font-normal text-slate-500">Daily Volume</span>

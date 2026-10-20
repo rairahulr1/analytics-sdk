@@ -61,6 +61,23 @@ describe('Analytics Browser SDK', () => {
         expect(client.queue.length).toBe(1);
     });
 
+    it('emits analytics:event window CustomEvent when track is called', () => {
+        const dispatchedEvents = [];
+        global.window.dispatchEvent = vi.fn((evt) => {
+            dispatchedEvents.push(evt);
+            return true;
+        });
+
+        const client = new Analytics({ autoPageView: false });
+        client.track('button_click', { button_name: 'hero_cta' });
+
+        expect(global.window.dispatchEvent).toHaveBeenCalled();
+        expect(dispatchedEvents.length).toBe(1);
+        expect(dispatchedEvents[0].type).toBe('analytics:event');
+        expect(dispatchedEvents[0].detail.type).toBe('button_click');
+        expect(dispatchedEvents[0].detail.properties.button_name).toBe('hero_cta');
+    });
+
     it('tracks PageView with document and location metadata', () => {
         const client = new Analytics({ autoPageView: false });
         const pageView = client.trackPageView({ custom_section: 'desserts' });

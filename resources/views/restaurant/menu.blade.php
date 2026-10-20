@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="space-y-6">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+    <div data-tour="menu-header" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
             <h1 class="text-2xl font-black text-slate-900">Our Seasonal Menu</h1>
             <p class="text-xs text-slate-500 mt-1">Clicking "Select" tracks browser events with item properties in real time.</p>
@@ -38,6 +38,7 @@
                         </div>
                         <button
                             type="button"
+                            @if($loop->first) data-tour="menu-select-btn" @endif
                             onclick="trackMenuItem('{{ $item[0] }}', {{ $item[2] }})"
                             class="px-2.5 py-1.5 text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 font-semibold rounded-lg text-slate-700 transition"
                         >
@@ -93,7 +94,6 @@ function trackMenuItem(name, price) {
             currency: 'USD'
         });
     }
-    alert('Added "' + name + '"! Tracked "menu_item_selected" event via Browser SDK.');
 }
 </script>
 @endsection

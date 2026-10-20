@@ -179,6 +179,12 @@
 
         this.queue.push(event);
 
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+            try {
+                window.dispatchEvent(new CustomEvent('analytics:event', { detail: event }));
+            } catch (e) {}
+        }
+
         if (this.config.debug) {
             console.log('[Analytics] Enqueued:', event);
         }

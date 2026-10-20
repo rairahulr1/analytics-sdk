@@ -10,7 +10,7 @@
             </p>
         </div>
 
-        <form action="{{ route('restaurant.orders.store') }}" method="POST" id="checkout-form" class="space-y-5">
+        <form action="{{ route('restaurant.orders.store') }}" method="POST" id="checkout-form" data-tour="order-form" class="space-y-5">
             @csrf
 
             <div>
@@ -94,6 +94,7 @@
                 <button
                     type="submit"
                     id="submit-order-btn"
+                    data-tour="order-submit-btn"
                     class="px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 shadow-md transition"
                 >
                     Confirm &amp; Place Order &rarr;

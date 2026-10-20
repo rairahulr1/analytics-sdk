@@ -7,11 +7,12 @@
 
     <title>{{ config('app.name', 'Restaurant Demo') }} — Analytics System</title>
 
-    <!-- Tailwind & Vite Bundles -->
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-
     <!-- Browser Analytics SDK (Standalone auto-init script) -->
     <script src="/js/analytics.js"></script>
+
+    <!-- Tailwind & Vite Bundles -->
+    @viteReactRefresh
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-full flex flex-col font-sans antialiased text-slate-800">
     <!-- Navigation Bar -->
@@ -28,20 +29,29 @@
                         <a href="{{ route('restaurant.home') }}" class="px-3 py-2 rounded-lg transition {{ request()->routeIs('restaurant.home') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                             Home
                         </a>
-                        <a href="{{ route('restaurant.menu') }}" class="px-3 py-2 rounded-lg transition {{ request()->routeIs('restaurant.menu') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                        <a href="{{ route('restaurant.menu') }}" data-tour="nav-menu" class="px-3 py-2 rounded-lg transition {{ request()->routeIs('restaurant.menu') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                             Menu
                         </a>
-                        <a href="{{ route('restaurant.order') }}" class="px-3 py-2 rounded-lg transition {{ request()->routeIs('restaurant.order') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
+                        <a href="{{ route('restaurant.order') }}" data-tour="nav-order" class="px-3 py-2 rounded-lg transition {{ request()->routeIs('restaurant.order') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50' }}">
                             Order Online
                         </a>
                     </nav>
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                    <span data-tour="nav-sdk" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
                         ● SDK Active
                     </span>
-                    <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-sm transition">
+                    <button
+                        type="button"
+                        onclick="window.startWalkthrough && window.startWalkthrough()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold hover:bg-indigo-100 transition shadow-2xs border border-indigo-200"
+                        title="Start interactive product tour"
+                    >
+                        <span>🎓</span>
+                        <span class="hidden sm:inline">Tour</span>
+                    </button>
+                    <a href="{{ route('dashboard') }}" data-tour="nav-dashboard" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-sm transition">
                         <span>📊 Live Dashboard</span>
                     </a>
                 </div>
@@ -77,6 +87,10 @@
             </div>
         </div>
     </footer>
+
+    <!-- Overlay Root Containers -->
+    <div id="walkthrough-root"></div>
+    <div id="telemetry-hud-root"></div>
 
     @stack('scripts')
 </body>
