@@ -1,0 +1,98 @@
+# Docker Deployment Guide — analytics-sdk
+
+> How to deploy the analytics-sdk stack (Laravel 13 + React/Vite + PostgreSQL 15) as Docker containers with a single command, on your machine or a VPS.
+
+---
+
+## TOON Specification
+
+```toon
+metadata:
+  standard: TOON (Token-Oriented Object Notation)
+  status: canonical_default_for_agents
+  generated: 2026-10-20
+  purpose: One-command Docker deployment reference for the analytics-sdk stack
+
+prerequisites[3]{item,requirement,check}:
+  docker,Docker Engine 24+ with the Compose v2 plugin,docker compose version
+  node,Node 18+ + npm; builds Vite assets that the bind mount serves,npm --version
+  git,a checkout of this repository on the target host,git status
+
+ports[3]{service,image,container_port,host_default,published_as}:
+  db,postgres:15-alpine,5432,5433,${POSTGRES_HOST_PORT:-5433}
+  laravel,php:8.4-fpm (Dockerfile),9000,9000,fixed 9000:9000 (not overridable)
+  front,nginx (Dockerfile.front),80,8088,${FRONT_HOST_PORT:-8088}
+
+config[6]{variable,default,controls}:
+  DB_DATABASE,analytics,PostgreSQL database name
+  DB_USERNAME,analytics_user,PostgreSQL user
+  DB_PASSWORD,secret,PostgreSQL password; change for anything exposed
+  SEED_DATABASE,true; seed sample data on first startup; set false to skip,first-boot seeding gate
+  POSTGRES_HOST_PORT,5433,host port for db (compose file default; override via .env)
+  FRONT_HOST_PORT,8088,host port for the web entry point
+
+firstboot[5]{step,what,when}:
+  1,chmod a+rwX storage/ + bootstrap/cache; the bind mount keeps host uid and the php-fpm worker (www-data) needs write access,every boot
+  2,wait for db via php artisan db:status,every boot
+  3,php artisan migrate --force; idempotent,every boot
+  4,php artisan db:seed,first boot only; requires SEED_DATABASE truthy and no /tmp/.app_initialized marker in the container
+  5,exec php-fpm,always
+
+up[4]{step,command,note,why}:
+  1,npm install && npm run build,skip if public/build/manifest.json already exists in the checkout,nginx serves assets from the ./ bind mount; fresh clones otherwise have an empty asset dir (assets are not git-tracked)
+  2,docker compose up --build -d,one command; builds all three images,builds db/app/web and starts the stack
+  3,docker compose ps,expect analytics-db and analytics-laravel (healthy); analytics-front Up,confirms healthcheck gates passed
+  4,see verification table below,run the observed-output checks,proves the deployment end to end
+
+verify[6]{check,command,expected}:
+  containers,docker compose ps --format 'table {{.Name}}\t{{.Status}}',db and laravel Healthy; front Up
+  app page,curl -o /dev/null -w '%{http_code}' http://127.0.0.1:8088/restaurant,200
+  dashboard,curl -o /dev/null -w '%{http_code}' http://127.0.0.1:8088/dashboard,200 (React + Tailwind analytics UI)
+  ingest,curl -X POST http://127.0.0.1:8088/api/events -H 'Content-Type: application/json' -d '{"type":"deploy_check"|"source":"server"}',{"status":"ok"|"ingested":1}
+  query,curl 'http://127.0.0.1:8088/api/events?limit=1',JSON event list; seeded + just-ingested events
+  tests,docker compose exec laravel php artisan test,11 tests; 39 assertions; all passing
+
+update[3]{step,action,command,note}:
+  1,pull new code,git pull,frontend or app changes may need npm install && npm run build again
+  2,rebuild and roll,docker compose up --build -d,entrypoint reruns migrations idempotently; data persists in the postgres_data volume
+  3,(optional) hard reset,docker compose down -v,drops the postgres volume; next up reseeds from scratch
+
+troubleshooting[5]{symptom,with,cause,fix}:
+  port already allocated,bind,docker compose up,host port busy (5432/80/8088 were conflicts on the reference dev machine)
+  dashboard blank or 404 assets,fetch,public/build empty in checkout; nginx serves the bind mount not the image stage,npm install && npm run build; docker compose restart front
+  laravel container unhealthy,logs,docker slow start; run docker compose logs laravel,docker compose restart laravel; stacks start in dependency order (waiting on DB)
+  db unhealthy,logs,pg_isready fail; run docker compose logs db and volume or PG env mismatch,docker compose down -v removes the volume; then docker compose up --build
+  dashboard 500 tempnam,inspect,storage/ ownership from the bind mount blocks the php-fpm worker; the entrypoint chmods at boot since commit 6f69269,confirm old image; docker compose up --build -d refreshes it
+
+actions_secrets[4]{secret,required,purpose,example}:
+  VPS_HOST,yes,IP or hostname where the VPS deploy lands,203.0.113.10
+  VPS_SSH_PRIVATE_KEY,yes,SSH private key accepted by the VPS for the deploy user,PEM key body
+  VPS_SSH_USER,yes,unix user on the VPS permitted to rsync and restart services,deploy
+  VPS_DEPLOY_PATH,yes,absolute application path on the VPS,/var/www/analytics-sdk
+
+vps_docker[4]{step,command,detail,fallback}:
+  1,git clone,sudo git clone <repo> /srv/analytics-sdk on the VPS,scp -r also works if git is unavailable
+  2,npm build,npm install && npm run build on the VPS,missing assets break the dashboard because the bind mount shadows the image's built stage
+  3,docker compose up --build -d,same one command as local; expose FRONT_HOST_PORT in the firewall,sudo ufw allow 8088/tcp
+  4,verify,see verify table above; docker compose exec laravel php artisan test should pass 11/11,run under the same user that will operate the stack
+</context>
+```
+
+## One-command deploy
+
+```bash
+npm install && npm run build      # only needed when public/build/manifest.json is absent
+docker compose up --build -d
+```
+
+That single command builds all three images (`db`, `laravel`, `front`), starts the stack in dependency order, and the container entrypoint performs the entire bring-up: permissions fix, database wait, idempotent migrations, first-boot-only seeding.
+
+## CI/CD automatic deploy (native PHP-FPM, no Docker)
+
+`deploy.yml` fires on push to `main` and deploys natively to a VPS over SSH (rsync code, `composer install`, `php artisan migrate --force`, restart php-fpm/nginx). It uses exactly the four secrets in `actions_secrets`. VPS prerequisites: Docker not required for this path; needs PHP/Composer/nginx/php-fpm on the box, SSH key access, and the deploy path writable by `VPS_SSH_USER`. The fully-dockerized VPS path (`vps_docker`) is the manual alternative when you prefer containers everywhere.
+
+## Local development (without Docker)
+
+`php artisan serve` + `npx vite` against SQLite, per the README; Docker is not required for code iteration.
+
+Logo asset: none; browser opens `docs/docker-deploy.html` for the rendered page.
